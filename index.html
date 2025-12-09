@@ -14,9 +14,9 @@
 
     <style>
         :root {
-            --primary-color: #2563eb;   /* כחול מודרני */
+            --primary-color: #2563eb;
             --primary-soft: #e0edff;
-            --accent-color: #22c55e;    /* ירוק עדין */
+            --accent-color: #22c55e;
             --danger-color: #ef4444;
             --bg-color: #f3f4f6;
             --card-bg: #ffffff;
@@ -25,6 +25,7 @@
             --muted-text: #6b7280;
             --radius-lg: 16px;
             --radius-md: 10px;
+            --field-height: 44px; /* גובה אחיד לשדות ולכפתור סרוק */
         }
 
         * {
@@ -66,9 +67,9 @@
             margin-bottom: 20px;
         }
 
-        /* סגנון לאזור המצלמה */
+        /* אזור המצלמה */
         #scanner-container {
-            display: none; /* מוסתר כברירת מחדל */
+            display: none;
             position: fixed;
             inset: 0;
             width: 100%;
@@ -126,12 +127,11 @@
             flex: 2;
         }
 
-        /* עטיפה לברקוד + כפתור סריקה */
+        /* עטיפה לברקוד + כפתור סרוק */
         .barcode-wrapper {
-            display: grid;
-            grid-template-columns: 1fr auto; /* שדה רחב + כפתור */
+            display: flex;
             gap: 8px;
-            align-items: stretch;            /* אותו גובה לשדה ולכפתור */
+            align-items: stretch;
         }
 
         label {
@@ -140,8 +140,10 @@
             color: var(--muted-text);
         }
 
-        input, select {
-            padding: 11px 12px;
+        input,
+        select {
+            height: var(--field-height);
+            padding: 0 12px;
             border: 1px solid var(--border-color);
             border-radius: var(--radius-md);
             font-size: 1rem;
@@ -183,26 +185,25 @@
             box-shadow: none;
         }
 
-        /* כפתור סרוק – מותאם לגובה השדה */
+        /* כפתור סרוק – גובה זהה לשדה */
         .btn-scan {
+            height: var(--field-height);
             background: #111827;
             color: #ffffff;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 6px;
-            padding: 0 16px;                 /* הגובה נקבע ע"י ה-wrapper */
-            border-radius: var(--radius-md); /* כמו האינפוט */
+            padding: 0 16px;
+            border-radius: var(--radius-md);
             box-shadow: 0 4px 10px rgba(15, 23, 42, 0.25);
             font-size: 0.9rem;
-            border: none;
-            cursor: pointer;
         }
 
         .btn-scan span {
             font-size: 1.05rem;
         }
-        
+
         .btn-add {
             background: linear-gradient(135deg, var(--accent-color), #16a34a);
             color: white;
