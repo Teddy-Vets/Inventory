@@ -126,24 +126,13 @@
             flex: 2;
         }
 
-        .btn-scan {
-    background: #111827;
-    color: #ffffff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 0 16px;                 /* בלי padding אנכי – הגובה נקבע ע"י ה-wrapper */
-    border-radius: var(--radius-md); /* כמו האינפוט */
-    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.25);
-    font-size: 0.9rem;
-    border: none;
-    cursor: pointer;
-}
-.btn-scan span {
-    font-size: 1.05rem;
-}
-
+        /* עטיפה לברקוד + כפתור סריקה */
+        .barcode-wrapper {
+            display: grid;
+            grid-template-columns: 1fr auto; /* שדה רחב + כפתור */
+            gap: 8px;
+            align-items: stretch;            /* אותו גובה לשדה ולכפתור */
+        }
 
         label {
             font-size: 0.85rem;
@@ -194,17 +183,24 @@
             box-shadow: none;
         }
 
+        /* כפתור סרוק – מותאם לגובה השדה */
         .btn-scan {
             background: #111827;
-            color: white;
-            display: inline-flex;
+            color: #ffffff;
+            display: flex;
             align-items: center;
+            justify-content: center;
             gap: 6px;
-            box-shadow: 0 4px 10px rgba(15,23,42,0.3);
+            padding: 0 16px;                 /* הגובה נקבע ע"י ה-wrapper */
+            border-radius: var(--radius-md); /* כמו האינפוט */
+            box-shadow: 0 4px 10px rgba(15, 23, 42, 0.25);
+            font-size: 0.9rem;
+            border: none;
+            cursor: pointer;
         }
 
         .btn-scan span {
-            font-size: 1.1rem;
+            font-size: 1.05rem;
         }
         
         .btn-add {
@@ -297,10 +293,6 @@
             .input-group {
                 flex-direction: column;
                 align-items: stretch;
-            }
-
-            .barcode-wrapper {
-                flex-direction: row;
             }
 
             .btn-add {
