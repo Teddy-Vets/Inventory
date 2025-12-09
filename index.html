@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מערכת ספירת מלאי - מרפאות</title>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+    <!-- פונט מודרני בעברית -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+Hebrew:wght@300;400;500;700&display=swap"
+    />
+
+    <style>
+        :root {
+            --primary-color: #2563eb;   /* כחול מודרני */
+            --primary-soft: #e0edff;
+            --accent-color: #22c55e;    /* ירוק עדין */
+            --danger-color: #ef4444;
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --border-color: #e5e7eb;
+            --text-color: #111827;
+            --muted-text: #6b7280;
+            --radius-lg: 16px;
+            --radius-md: 10px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Noto Sans Hebrew", system-ui, -apple-system, BlinkMacSystemFont,
+              "Segoe UI", sans-serif;
+            background: radial-gradient(circle at top, #e0f2fe 0, #f3f4f6 42%, #f9fafb 100%);
+            color: var(--text-color);
+            margin: 0;
+            padding: 16px;
+        }
+
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            padding: 24px 20px 20px;
+            border-radius: var(--radius-lg);
+            box-shadow:
+              0 18px 45px rgba(15, 23, 42, 0.08),
+              0 0 0 1px rgba(148, 163, 184, 0.12);
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--text-color);
+            margin-bottom: 4px;
+            font-size: 1.7rem;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--muted-text);
+            margin-bottom: 20px;
+        }
+
+        /* סגנון לאזור המצלמה */
+        #scanner-container {
+            display: none; /* מוסתר כברירת מחדל */
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15,23,42,0.85);
+            z-index: 999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        #reader {
+            width: 100%;
+            max-width: 480px;
+            background: #000;
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 16px 40px rgba(0,0,0,0.4);
+        }
+
+        .close-scanner {
+            margin-top: 18px;
+            padding: 10px 28px;
+            background: var(--danger-color);
+            color: white;
+            border: none;
+            font-size: 1rem;
+            border-radius: 999px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .input-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            align-items: flex-end;
+            margin-bottom: 20px;
+            background: #f9fafb;
+            padding: 16px;
+            border-radius: 14px;
+            border: 1px solid var(--border-color);
+        }
+
+        .form-field {
+            flex: 1;
+            min-width: 170px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-field.wide {
+            flex: 2;
+        }
+
+        .barcode-wrapper {
+            display: flex;
+            gap: 8px;
+        }
+
+        label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--muted-text);
+        }
+
+        input, select {
+            padding: 11px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            font-size: 1rem;
+            background-color: #ffffff;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+        }
+
+        input::placeholder {
+            color: #9ca3af;
+            font-size: 0.9rem;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.25);
+            background-color: #f9fafb;
+        }
+
+        select:disabled {
+            background-color: #f3f4f6;
+            color: #9ca3af;
+        }
+
+        button {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 999px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.2s ease;
+            white-space: nowrap;
+        }
+
+        button:active {
+            transform: scale(0.98);
+            box-shadow: none;
+        }
+
+        .btn-scan {
+            background: #111827;
+            color: white;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 4px 10px rgba(15,23,42,0.3);
+        }
+
+        .btn-scan span {
+            font-size: 1.1rem;
+        }
+        
+        .btn-add {
+            background: linear-gradient(135deg, var(--accent-color), #16a34a);
+            color: white;
+            margin-top: 10px;
+            box-shadow: 0 6px 16px rgba(34,197,94,0.35);
+            align-self: flex-end;
+            min-width: 190px;
+        }
+
+        .actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 14px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .summary-pill {
+            background: var(--primary-soft);
+            color: var(--primary-color);
+            padding: 7px 16px;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .btn-export {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-clear {
+            background: #f97316;
+            color: white;
+            margin-left: 6px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 18px;
+            font-size: 0.95rem;
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        th, td {
+            text-align: right;
+            padding: 11px 10px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        th {
+            background: #f3f4f6;
+            color: var(--muted-text);
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f9fafb;
+        }
+
+        tbody tr:hover {
+            background-color: #eef2ff;
+        }
+
+        .delete-row {
+            color: var(--danger-color);
+            background: transparent;
+            font-size: 0.9rem;
+            padding: 0;
+            box-shadow: none;
+            text-decoration: underline;
+        }
+
+        @media (max-width: 700px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                padding: 20px 14px 16px;
+                border-radius: 14px;
+            }
+
+            .input-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .barcode-wrapper {
+                flex-direction: row;
+            }
+
+            .btn-add {
+                width: 100%;
+            }
+
+            th:nth-child(2),
+            td:nth-child(2) {
+                max-width: 160px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="scanner-container">
+    <div id="reader"></div>
+    <button class="close-scanner" onclick="stopScanner()">סגור מצלמה</button>
+</div>
+
+<div class="container">
+    <h1>🏥 ספירת מלאי - מרפאות</h1>
+    <div class="subtitle">סריקה, קטלוג וייצוא מלאי למרפאות הרשת – באופן מהיר ונקי</div>
+
+    <div class="input-group">
+        <div class="form-field wide">
+            <label>ברקוד</label>
+            <div class="barcode-wrapper">
+                <input type="text" id="barcode" placeholder="סרוק או הקלד ברקוד מוצר..." autofocus>
+                <button class="btn-scan" onclick="startScanner()">
+                    <span>📷</span> סרוק
+                </button>
+            </div>
+        </div>
+
+        <div class="form-field wide">
+            <label>שם המוצר</label>
+            <input type="text" id="productName" placeholder="שם הפריט כפי שמופיע אצלכם במלאי">
+        </div>
+
+        <div class="form-field">
+            <label>קטגוריה ראשית</label>
+            <select id="primaryCategory">
+                <option value="">בחר קטגוריה</option>
+                <option value="וטשופ">וטשופ</option>
+                <option value="ציוד רפואי">ציוד רפואי</option>
+                <option value="תרופות">תרופות</option>
+            </select>
+        </div>
+
+        <div class="form-field">
+            <label>תת־קטגוריה</label>
+            <select id="subCategory" disabled>
+                <option value="">בחר תת־קטגוריה</option>
+            </select>
+        </div>
+
+        <div class="form-field">
+            <label>כמות</label>
+            <input type="number" id="quantity" placeholder="0" min="1" value="1">
+        </div>
+
+        <div class="form-field">
+            <label>תוקף</label>
+            <input type="date" id="expiry">
+        </div>
+
+        <button class="btn-add" onclick="addItem()">הוסף שורה למלאי</button>
+    </div>
+
+    <div class="actions">
+        <span id="totalItems" class="summary-pill">שורות: 0</span>
+        <div>
+            <button class="btn-clear" onclick="clearData()">🗑️ נקה הכל</button>
+            <button class="btn-export" onclick="exportToCSV()">📥 הורדת אקסל</button>
+        </div>
+    </div>
+
+    <table id="inventoryTable">
+        <thead>
+            <tr>
+                <th>ברקוד</th>
+                <th>שם</th>
+                <th>קטגוריה</th>
+                <th>תת־קטגוריה</th>
+                <th>כמות</th>
+                <th>תוקף</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<script>
+    let html5QrCode;
+
+    const subcategoriesMap = {
+        "וטשופ": [
+            "מזון רפואי",
+            "תוספי מזון",
+            "חטיפים",
+            "משחקים",
+            "הגיינת הפה",
+            "דרמטולוגיה (שמפו וכו')",
+            "הדברה"
+        ],
+        "ציוד רפואי": [
+            "מתכלים",
+            "אחר"
+        ],
+        "תרופות": [
+            "כללי"
+        ]
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initCategorySelects();
+        loadData();
+        const sc = document.getElementById('scanner-container');
+        if (sc) sc.style.display = 'none';
+    });
+
+    function initCategorySelects() {
+        const primarySelect = document.getElementById('primaryCategory');
+        const subSelect = document.getElementById('subCategory');
+
+        primarySelect.addEventListener('change', () => {
+            const primary = primarySelect.value;
+            subSelect.innerHTML = '<option value="">בחר תת־קטגוריה</option>';
+
+            if (!primary || !subcategoriesMap[primary]) {
+                subSelect.disabled = true;
+                return;
+            }
+
+            subcategoriesMap[primary].forEach(sub => {
+                const option = document.createElement('option');
+                option.value = sub;
+                option.textContent = sub;
+                subSelect.appendChild(option);
+            });
+
+            subSelect.disabled = false;
+
+            if (subcategoriesMap[primary].length === 1) {
+                subSelect.value = subcategoriesMap[primary][0];
+            }
+        });
+    }
+
+    // --- סריקת ברקוד דרך המצלמה ---
+
+    function startScanner() {
+        const scannerContainer = document.getElementById('scanner-container');
+        scannerContainer.style.display = 'flex';
+
+        html5QrCode = new Html5Qrcode("reader");
+        const config = { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 };
+
+        html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
+        .catch(err => {
+            alert("שגיאה בפתיחת מצלמה: ודא שנתת אישור ושהאתר מאובטח (HTTPS)");
+            stopScanner();
+        });
+    }
+
+    function onScanSuccess(decodedText, decodedResult) {
+        playBeep();
+        document.getElementById('barcode').value = decodedText;
+        stopScanner();
+
+        setTimeout(() => {
+             document.getElementById('productName').focus();
+        }, 250);
+    }
+
+    function stopScanner() {
+        const scannerContainer = document.getElementById('scanner-container');
+
+        if (html5QrCode) {
+            html5QrCode.stop().then(() => {
+                scannerContainer.style.display = 'none';
+                html5QrCode.clear();
+            }).catch(err => {
+                console.log("Error stopping scanner");
+                scannerContainer.style.display = 'none';
+            });
+        } else {
+            scannerContainer.style.display = 'none';
+        }
+    }
+
+    // צליל ביפ
+    function playBeep() {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = 1200;
+        osc.type = "sine";
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.1);
+        setTimeout(() => osc.stop(), 100);
+    }
+
+    // --- ניהול הטבלה ---
+
+    document.getElementById('quantity').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') addItem();
+    });
+
+    document.getElementById('productName').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') document.getElementById('quantity').focus();
+    });
+
+    function addItem() {
+        const barcode = document.getElementById('barcode').value.trim();
+        const name = document.getElementById('productName').value.trim();
+        const primaryCategory = document.getElementById('primaryCategory').value;
+        const subCategory = document.getElementById('subCategory').value;
+        const quantity = document.getElementById('quantity').value;
+        const expiry = document.getElementById('expiry').value;
+
+        if (!barcode && !name) {
+            alert("חובה להזין לפחות ברקוד או שם מוצר.");
+            return;
+        }
+
+        if (!primaryCategory) {
+            alert("אנא בחר קטגוריה ראשית למוצר.");
+            return;
+        }
+
+        const tableBody = document.getElementById('inventoryTable').getElementsByTagName('tbody')[0];
+
+        if (barcode) {
+            const existingRows = Array.from(tableBody.rows);
+            const exists = existingRows.find(row => row.cells[0].innerText === barcode);
+            if (exists) {
+                if (!confirm(`המוצר עם ברקוד ${barcode} כבר קיים. להוסיף שורה נוספת?`)) {
+                    resetInputs();
+                    return;
+                }
+            }
+        }
+
+        const newRow = tableBody.insertRow();
+        newRow.innerHTML = `
+            <td>${barcode}</td>
+            <td>${name}</td>
+            <td>${primaryCategory}</td>
+            <td>${subCategory}</td>
+            <td>${quantity}</td>
+            <td>${expiry}</td>
+            <td><button class="delete-row" onclick="deleteRow(this)">מחק</button></td>
+        `;
+
+        saveData();
+        resetInputs();
+        updateCount();
+    }
+
+    function resetInputs() {
+        document.getElementById('barcode').value = '';
+        document.getElementById('productName').value = '';
+        document.getElementById('primaryCategory').value = '';
+        const subSelect = document.getElementById('subCategory');
+        subSelect.innerHTML = '<option value="">בחר תת־קטגוריה</option>';
+        subSelect.disabled = true;
+        document.getElementById('quantity').value = '1';
+        document.getElementById('expiry').value = '';
+    }
+
+    function deleteRow(btn) {
+        const row = btn.closest('tr');
+        row.parentNode.removeChild(row);
+        saveData();
+        updateCount();
+    }
+
+    function clearData() {
+        if (confirm("למחוק את כל שורות המלאי?")) {
+            document.getElementById('inventoryTable').getElementsByTagName('tbody')[0].innerHTML = '';
+            localStorage.removeItem('inventoryData');
+            updateCount();
+        }
+    }
+
+    function saveData() {
+        const tableBody = document.getElementById('inventoryTable').getElementsByTagName('tbody')[0];
+        const rows = Array.from(tableBody.rows);
+
+        const data = rows.map(row => ({
+            barcode: row.cells[0].innerText,
+            name: row.cells[1].innerText,
+            primaryCategory: row.cells[2].innerText,
+            subCategory: row.cells[3].innerText,
+            quantity: row.cells[4].innerText,
+            expiry: row.cells[5].innerText
+        }));
+
+        localStorage.setItem('inventoryData', JSON.stringify(data));
+    }
+
+    function loadData() {
+        const raw = localStorage.getItem('inventoryData');
+        if (!raw) return;
+
+        let data;
+        try {
+            data = JSON.parse(raw);
+        } catch {
+            return;
+        }
+        if (!Array.isArray(data)) return;
+
+        const tableBody = document.getElementById('inventoryTable').getElementsByTagName('tbody')[0];
+
+        data.forEach(item => {
+            const newRow = tableBody.insertRow();
+            newRow.innerHTML = `
+                <td>${item.barcode || ''}</td>
+                <td>${item.name || ''}</td>
+                <td>${item.primaryCategory || ''}</td>
+                <td>${item.subCategory || ''}</td>
+                <td>${item.quantity || ''}</td>
+                <td>${item.expiry || ''}</td>
+                <td><button class="delete-row" onclick="deleteRow(this)">מחק</button></td>
+            `;
+        });
+
+        updateCount();
+    }
+
+    function updateCount() {
+        const count = document.getElementById('inventoryTable')
+            .getElementsByTagName('tbody')[0].rows.length;
+        document.getElementById('totalItems').innerText = 'שורות: ' + count;
+    }
+
+    function exportToCSV() {
+        const tableBody = document.getElementById('inventoryTable').getElementsByTagName('tbody')[0];
+        const rows = Array.from(tableBody.rows);
+
+        let csvContent = "\uFEFFברקוד,שם המוצר,קטגוריה ראשית,תת קטגוריה,כמות,תוקף\n";
+
+        rows.forEach(row => {
+            const barcode = row.cells[0].innerText;
+            const name = row.cells[1].innerText.replace(/,/g, " ");
+            const primaryCategory = row.cells[2].innerText.replace(/,/g, " ");
+            const subCategory = row.cells[3].innerText.replace(/,/g, " ");
+            const quantity = row.cells[4].innerText;
+            const expiry = row.cells[5].innerText;
+
+            csvContent += `${barcode},${name},${primaryCategory},${subCategory},${quantity},${expiry}\n`;
+        });
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "inventory_mobile.csv";
+        link.click();
+    }
+</script>
+
+</body>
+</html>
