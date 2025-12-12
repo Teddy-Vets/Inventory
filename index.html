@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>מערכת ספירת מלאי - Teddy Inventory</title>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Hebrew:wght@300;400;500;700&display=swap" />
 
     <style>
@@ -15,6 +14,20 @@
         .container { max-width: 960px; margin: 0 auto; background: var(--card-bg); padding: 24px 20px 20px; border-radius: var(--radius-lg); box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(148, 163, 184, 0.12); }
         h1 { text-align: center; margin-bottom: 4px; font-size: 1.7rem; font-weight: 700; }
         .subtitle { text-align: center; font-size: 0.9rem; color: var(--muted-text); margin-bottom: 20px; }
+        
+        .clinic-selector {
+            background: #fffbeb;
+            border: 2px solid #fcd34d;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .clinic-selector select { font-weight: bold; color: #78350f; border-color: #fcd34d; }
+
         #scanner-container { display: none; position: fixed; inset: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.85); z-index: 999; flex-direction: column; align-items: center; justify-content: center; padding: 16px; }
         #reader { width: 100%; max-width: 480px; background: #000; border-radius: 14px; overflow: hidden; }
         .close-scanner { margin-top: 18px; padding: 10px 28px; background: var(--danger-color); color: white; border: none; font-radius: 999px; cursor: pointer; font-weight: 600; border-radius: 20px;}
@@ -31,11 +44,14 @@
         .actions { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; flex-wrap: wrap; gap: 10px; }
         .summary-pill { background: var(--primary-soft); color: var(--primary-color); padding: 7px 16px; border-radius: 999px; font-size: 0.85rem; font-weight: 600; }
         .btn-export { background: var(--primary-color); color: white; }
-        .btn-clear { background: #f97316; color: white; margin-left: 6px; }
         table { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 0.95rem; border-radius: 14px; overflow: hidden; }
         th, td { text-align: right; padding: 11px 10px; border-bottom: 1px solid #e5e7eb; }
         th { background: #f3f4f6; color: var(--muted-text); font-weight: 600; }
-        .delete-row { color: var(--danger-color); background: transparent; padding: 0; text-decoration: underline; }
+        .delete-row { color: var(--danger-color); background: transparent; padding: 0; text-decoration: underline; cursor: pointer; }
+        
+        .found-animation { animation: flashGreen 1s ease; }
+        @keyframes flashGreen { 0% { background-color: #dcfce7; } 100% { background-color: #ffffff; } }
+
         @media (max-width: 700px) { .input-group { flex-direction: column; align-items: stretch; } .btn-add { width: 100%; } }
     </style>
 </head>
@@ -47,14 +63,25 @@
 </div>
 
 <div class="container">
-    <h1>🏥טדי ספירת מלאי 2025 </h1>
-    <div class="subtitle">הנתונים מסתנכרנים בזמן אמת לענן (Teddy Inventory)</div>
+    <h1>🏥 ספירת מלאי - Teddy Inventory</h1>
+    <div class="subtitle">מערכת חכמה לניהול מלאי רשת</div>
+
+    <div class="clinic-selector">
+        <label for="currentClinic">📍 מיקום הספירה הנוכחי:</label>
+        <select id="currentClinic">
+            <option value="מרפאה ראשית">מרפאה ראשית</option>
+            <option value="סניף צפון">סניף צפון</option>
+            <option value="סניף דרום">סניף דרום</option>
+            <option value="מחסן ראשי">מחסן ראשי</option>
+            <option value="ניידת">ניידת</option>
+        </select>
+    </div>
 
     <div class="input-group">
         <div class="form-field wide">
             <label>ברקוד</label>
             <div class="barcode-wrapper">
-                <input type="text" id="barcode" placeholder="סרוק או הקלד ברקוד..." autofocus>
+                <input type="text" id="barcode" placeholder="סרוק או הקלד ברקוד..." autofocus onblur="checkForExistingProduct()">
                 <button class="btn-scan" onclick="startScanner()"><span>📷</span> סרוק</button>
             </div>
         </div>
@@ -98,6 +125,7 @@
     <table id="inventoryTable">
         <thead>
             <tr>
+                <th>מרפאה</th>
                 <th>ברקוד</th>
                 <th>שם</th>
                 <th>קטגוריה</th>
@@ -112,12 +140,13 @@
 </div>
 
 <script type="module">
-    // טעינת הספריות מהאינטרנט (CDN) במקום מ-npm
+    // ------------------------------------------------------------------
+    // ייבוא Firebase
+    // ------------------------------------------------------------------
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy, Timestamp } 
+    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy, Timestamp, where, limit, getDocs } 
            from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    // הקונפיגורציה של Teddy Inventory
     const firebaseConfig = {
       apiKey: "AIzaSyBn8bKKDq220_Ogm4mt6aBK6BeP0D6n6u0",
       authDomain: "teddyinventory.firebaseapp.com",
@@ -127,17 +156,27 @@
       appId: "1:382867870794:web:f99c1460f79e3e9ef5c2b3"
     };
 
-    // אתחול האפליקציה
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const inventoryCol = collection(db, "inventory");
 
-    // משתנה גלובלי לשמירת הנתונים ל-CSV
+    // משתנים גלובליים
     window.currentInventoryData = [];
+    let html5QrCode;
 
-    // --- האזנה לשינויים בזמן אמת ---
-    const q = query(inventoryCol, orderBy("timestamp", "desc"));
+    // מפות קטגוריות
+    const subcategoriesMap = {
+        "וטשופ": ["מזון רפואי", "תוספי מזון", "חטיפים", "משחקים", "הגיינת הפה", "דרמטולוגיה (שמפו וכו')", "הדברה"],
+        "ציוד רפואי": ["מתכלים", "אחר"],
+        "תרופות": ["כללי"]
+    };
+
+    // ------------------------------------------------------------------
+    // Firebase: האזנה ופעולות
+    // ------------------------------------------------------------------
     
+    // האזנה לשינויים בטבלה
+    const q = query(inventoryCol, orderBy("timestamp", "desc"));
     onSnapshot(q, (snapshot) => {
         const tableBody = document.querySelector('#inventoryTable tbody');
         tableBody.innerHTML = ''; 
@@ -150,6 +189,7 @@
             
             const newRow = tableBody.insertRow();
             newRow.innerHTML = `
+                <td><strong>${item.clinic || '-'}</strong></td>
                 <td>${item.barcode || ''}</td>
                 <td>${item.name || ''}</td>
                 <td>${item.primaryCategory || ''}</td>
@@ -160,7 +200,7 @@
             `;
         });
         
-        // חיבור מחדש של כפתורי המחיקה
+        // חיבור כפתורי מחיקה
         document.querySelectorAll('.delete-row').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 const id = e.target.getAttribute('data-id');
@@ -173,8 +213,9 @@
         document.getElementById('totalItems').innerText = 'שורות: ' + snapshot.size;
     });
 
-    // --- הוספת פריט (כתיבה לענן) ---
+    // הוספת מוצר (מחוברת ל-Window)
     window.addItem = async function() {
+        const clinic = document.getElementById('currentClinic').value;
         const barcode = document.getElementById('barcode').value.trim();
         const name = document.getElementById('productName').value.trim();
         const primaryCategory = document.getElementById('primaryCategory').value;
@@ -191,67 +232,110 @@
 
         try {
             await addDoc(inventoryCol, {
-                barcode,
-                name,
-                primaryCategory,
-                subCategory,
-                quantity,
-                expiry,
+                clinic, barcode, name, primaryCategory, subCategory, quantity, expiry,
                 timestamp: Timestamp.now()
             });
-            
             resetInputs();
         } catch (e) {
-            console.error("Error adding document: ", e);
-            alert("שגיאה בשמירת הנתונים: ודא שיצרת את מסד הנתונים Firestore בקונסול");
+            console.error("Error:", e);
+            alert("שגיאה בשמירה");
         }
         
         addBtn.disabled = false;
         addBtn.innerText = "הוסף שורה למלאי";
     }
-    
-    document.getElementById('addBtn').addEventListener('click', window.addItem);
-</script>
 
-<script>
-    // --- סקריפט רגיל לניהול UI וסורק (ללא קשר לדאטה בייס) ---
-    let html5QrCode;
-    const subcategoriesMap = {
-        "וטשופ": ["מזון רפואי", "תוספי מזון", "חטיפים", "משחקים", "הגיינת הפה", "דרמטולוגיה (שמפו וכו')", "הדברה"],
-        "ציוד רפואי": ["מתכלים", "אחר"],
-        "תרופות": ["כללי"]
-    };
+    // השלמה אוטומטית (מחוברת ל-Window)
+    window.checkForExistingProduct = async function() {
+        const barcodeInput = document.getElementById('barcode');
+        const barcode = barcodeInput.value.trim();
+        if (!barcode) return; 
 
-    document.addEventListener('DOMContentLoaded', () => {
-        initCategorySelects();
-        const sc = document.getElementById('scanner-container');
-        if (sc) sc.style.display = 'none';
-    });
+        const qCheck = query(inventoryCol, where("barcode", "==", barcode), limit(1));
+        
+        try {
+            const querySnapshot = await getDocs(qCheck);
+            if (!querySnapshot.empty) {
+                const existingData = querySnapshot.docs[0].data();
+                
+                const nameInput = document.getElementById('productName');
+                nameInput.value = existingData.name || '';
+                nameInput.classList.add('found-animation');
+
+                const catSelect = document.getElementById('primaryCategory');
+                catSelect.value = existingData.primaryCategory || '';
+                
+                // עדכון הסלקט של תת קטגוריה
+                updateSubCategoryOptions(existingData.primaryCategory);
+
+                const subCatSelect = document.getElementById('subCategory');
+                subCatSelect.value = existingData.subCategory || '';
+
+                document.getElementById('quantity').value = '1';
+                document.getElementById('quantity').focus();
+                
+                setTimeout(() => nameInput.classList.remove('found-animation'), 1000);
+            }
+        } catch (e) {
+            console.log("Error checking barcode:", e);
+        }
+    }
+
+    // ייצוא לאקסל (מחובר ל-Window)
+    window.exportToCSV = function() {
+        if(!window.currentInventoryData || window.currentInventoryData.length === 0) {
+            alert("אין נתונים לייצוא");
+            return;
+        }
+        let csvContent = "\uFEFFמרפאה,ברקוד,שם המוצר,קטגוריה ראשית,תת קטגוריה,כמות,תוקף\n";
+        window.currentInventoryData.forEach(item => {
+            const clinicName = (item.clinic || '').replace(/,/g, " ");
+            csvContent += `${clinicName},${item.barcode},${item.name},${item.primaryCategory},${item.subCategory},${item.quantity},${item.expiry}\n`;
+        });
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "inventory_teddy_multi.csv";
+        link.click();
+    }
+
+    // ------------------------------------------------------------------
+    // לוגיקה כללית (ממשק, מצלמה)
+    // ------------------------------------------------------------------
+
+    // ניהול קטגוריות
+    function updateSubCategoryOptions(primary) {
+        const subSelect = document.getElementById('subCategory');
+        subSelect.innerHTML = '<option value="">בחר תת־קטגוריה</option>';
+        
+        if (!primary || !subcategoriesMap[primary]) {
+            subSelect.disabled = true; return;
+        }
+
+        subcategoriesMap[primary].forEach(sub => {
+            const option = document.createElement('option');
+            option.value = sub;
+            option.textContent = sub;
+            subSelect.appendChild(option);
+        });
+        subSelect.disabled = false;
+        
+        if (subcategoriesMap[primary].length === 1) {
+            subSelect.value = subcategoriesMap[primary][0];
+        }
+    }
 
     function initCategorySelects() {
         const primarySelect = document.getElementById('primaryCategory');
-        const subSelect = document.getElementById('subCategory');
-
         primarySelect.addEventListener('change', () => {
-            const primary = primarySelect.value;
-            subSelect.innerHTML = '<option value="">בחר תת־קטגוריה</option>';
-            if (!primary || !subcategoriesMap[primary]) {
-                subSelect.disabled = true; return;
-            }
-            subcategoriesMap[primary].forEach(sub => {
-                const option = document.createElement('option');
-                option.value = sub;
-                option.textContent = sub;
-                subSelect.appendChild(option);
-            });
-            subSelect.disabled = false;
-            if (subcategoriesMap[primary].length === 1) subSelect.value = subcategoriesMap[primary][0];
+            updateSubCategoryOptions(primarySelect.value);
         });
     }
 
     function resetInputs() {
         document.getElementById('barcode').value = '';
         document.getElementById('productName').value = '';
+        // משאירים את המרפאה כפי שהיא
         document.getElementById('primaryCategory').value = '';
         const subSelect = document.getElementById('subCategory');
         subSelect.innerHTML = '<option value="">בחר תת־קטגוריה</option>';
@@ -261,43 +345,31 @@
         document.getElementById('barcode').focus();
     }
 
-    function exportToCSV() {
-        if(!window.currentInventoryData || window.currentInventoryData.length === 0) {
-            alert("אין נתונים לייצוא");
-            return;
-        }
-        let csvContent = "\uFEFFברקוד,שם המוצר,קטגוריה ראשית,תת קטגוריה,כמות,תוקף\n";
-        window.currentInventoryData.forEach(item => {
-            csvContent += `${item.barcode},${item.name},${item.primaryCategory},${item.subCategory},${item.quantity},${item.expiry}\n`;
-        });
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = "inventory_teddy.csv";
-        link.click();
-    }
-
-    function startScanner() {
+    // ניהול מצלמה - מחובר ל-Window
+    window.startScanner = function() {
         const scannerContainer = document.getElementById('scanner-container');
         scannerContainer.style.display = 'flex';
         html5QrCode = new Html5Qrcode("reader");
         const config = { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 };
         html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
-        .catch(err => { alert("שגיאה במצלמה"); stopScanner(); });
+        .catch(err => { alert("שגיאה במצלמה: ודא שהאתר מאובטח (HTTPS)"); window.stopScanner(); });
     }
+
     function onScanSuccess(decodedText) {
         playBeep();
         document.getElementById('barcode').value = decodedText;
-        stopScanner();
-        setTimeout(() => document.getElementById('productName').focus(), 250);
+        window.stopScanner();
+        window.checkForExistingProduct(); 
     }
-    function stopScanner() {
+
+    window.stopScanner = function() {
         const scannerContainer = document.getElementById('scanner-container');
         if (html5QrCode) {
             html5QrCode.stop().then(() => { scannerContainer.style.display = 'none'; html5QrCode.clear(); })
             .catch(() => { scannerContainer.style.display = 'none'; });
         } else { scannerContainer.style.display = 'none'; }
     }
+
     function playBeep() {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         const osc = ctx.createOscillator();
@@ -309,13 +381,24 @@
         gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.1);
         setTimeout(() => osc.stop(), 100);
     }
-    
-    document.getElementById('quantity').addEventListener('keypress', function (e) {
-        if (e.key === 'Enter') window.addItem();
+
+    // אתחול בעליית הדף
+    document.addEventListener('DOMContentLoaded', () => {
+        initCategorySelects();
+        // חיבור אירועי מקלדת
+        document.getElementById('addBtn').addEventListener('click', window.addItem);
+        
+        document.getElementById('quantity').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') window.addItem();
+        });
+        document.getElementById('productName').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') document.getElementById('quantity').focus();
+        });
+        document.getElementById('barcode').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') window.checkForExistingProduct();
+        });
     });
-    document.getElementById('productName').addEventListener('keypress', function (e) {
-        if (e.key === 'Enter') document.getElementById('quantity').focus();
-    });
+
 </script>
 </body>
 </html>
